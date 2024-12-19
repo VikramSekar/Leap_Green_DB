@@ -5,11 +5,14 @@ const mysql = require('mysql2/promise'); // Use mysql2/promise for Promises
 // const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+
 
 app.use(bodyParser.json());
 app.use(cors());
 app.options('*', cors()); // Enable preflight requests
+
+
 
 
 
@@ -182,7 +185,8 @@ app.post('/api/submit', (req, res) => {
 app.get('/api/fetch-models', async (req, res) => {
   try {
     // First, get the created_at value of the last entry
-    const lastEntryQuery = `SELECT created_at FROM nwp_models ORDER BY created_at DESC LIMIT 1`;
+    // const lastEntryQuery = `SELECT modelName, created_at FROM nwp_models ORDER BY modelName ASC, created_at DESC LIMIT 1`;
+    const lastEntryQuery = `SELECT modelName, created_at FROM nwp_models ORDER BY modelName ASC, created_at DESC LIMIT 1`;
     const [lastEntryResult] = await db.query(lastEntryQuery);
 
     if (lastEntryResult.length === 0) {
@@ -246,7 +250,7 @@ app.post('/shiftA_preworkstatus', (req, res) => {
   res.send('Pre Work Status data inserted successfully!');
 });
 app.get('/shiftA_preworkstatuslast', async (req, res) => {
-  const sql = 'SELECT * FROM shiftA_preworkstatus ORDER BY created_at DESC LIMIT 6';
+  const sql = 'SELECT * FROM shiftA_preworkstatus';
 
   try {
     const [rows] = await db.query(sql);
@@ -302,7 +306,7 @@ app.post('/shiftA_forecast', async (req, res) => {
 
 app.get('/shiftA_forecastlast', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM shiftA_forecast ORDER BY created_at DESC LIMIT 8');
+    const [rows] = await db.query('SELECT * FROM shiftA_forecast');
     res.json(rows);
   } catch (error) {
     console.error('Error fetching forecast data:', error);
@@ -342,7 +346,7 @@ app.post('/shiftA_reports', async (req, res) => {
   }
 });
 app.get('/shiftA_reportlast', async (req, res) => {
-  const sql = 'SELECT * FROM shiftA_reports ORDER BY created_at DESC LIMIT 11';
+  const sql = 'SELECT * FROM shiftA_reports';
 
   try {
     const [rows] = await db.query(sql);
@@ -436,8 +440,8 @@ app.post('/shiftB_forecast', async (req, res) => {
 
   // Prepare the SQL query to insert forecast data
   const sql = `
-      INSERT INTO shiftB_forecast (forecast_type, our_group, ldc, mail, main_group, tangedco, teca, tn_15_days, rj_15_days)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO shiftB_forecast (forecast_type, our_group, ldc, mail, main_group, tangedco, teca)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
   // Create an array of promises for each insertion
@@ -447,8 +451,6 @@ app.post('/shiftB_forecast', async (req, res) => {
     db.query(sql, ['RJ Forecast 21:00 Hours', forecastData.rjForecast2100.ourGroup, forecastData.rjForecast2100.ldc, forecastData.rjForecast2100.mail, null, null, null, null, null]),
     db.query(sql, ['TANGEDCO', null, null, null, null, forecastData.tangedco.tangedco, null, null, null]),
     db.query(sql, ['TECA', null, null, null, null, null, forecastData.teca.teca, null, null]),
-    db.query(sql, ['TN 15 Days Forecast', null, null, null, null, null, null, forecastData.tn15DaysForecast.tn15Days, null]),
-    db.query(sql, ['RJ 15 Days Forecast', null, null, null, null, null, null, null, forecastData.rj15DaysForecast.rj15Days]),
   ];
 
 
@@ -464,7 +466,7 @@ app.post('/shiftB_forecast', async (req, res) => {
   }
 });
 app.get('/shiftB_forecastlast', async (req, res) => {
-  const sql = 'SELECT * FROM shiftB_forecast ORDER BY created_at DESC LIMIT 7';
+  const sql = 'SELECT * FROM shiftB_forecast';
 
   try {
     const [rows] = await db.query(sql);
@@ -502,16 +504,7 @@ app.post('/shiftB_demandforecast', async (req, res) => {
 });
 app.get('/shiftB_demandforecastlast', async (req, res) => {
   const sql = `
-      SELECT 
-          forecast_type, 
-          tn, 
-          our_group, 
-          main_group, 
-          accuracy_report, 
-          demand_dsm_report
-      FROM shiftB_demandforecast
-      WHERE created_at = (SELECT MAX(created_at) FROM shiftB_demandforecast)
-  `;
+      SELECT * From shiftb_demandforecast`;
   try {
     const [rows] = await db.query(sql);
     res.status(200).json(rows);  // Ensure correct fields are returned
@@ -601,48 +594,6 @@ app.get('/shiftB_solarforecastlast', async (req, res) => {
   }
 });
 
-// app.post("/shiftB_commonworks", async (req, res) => {
-//   const { ZYGRIB, NOWCASTStatus, TNWeatherAnalysis } = req.body;
-
-//   try {
-//     // Insert ZYGRIB data
-//     const zygribQuery = `
-//           INSERT INTO shiftB_commonworks (operation, TN, RJ, MP, MH) 
-//           VALUES ('ZYGRIB', ?, ?, ?, ?)
-//       `;
-//     await db.query(zygribQuery, [ZYGRIB.TN, ZYGRIB.RJ, ZYGRIB.MP, ZYGRIB.MH]);
-
-//     // Insert NOWCAST data
-//     const nowcastQuery = `
-//           INSERT INTO shiftB_commonworks (operation, TN, RJ, MP, MH) 
-//           VALUES ('NOWCAST', ?, ?, ?, ?)
-//       `;
-//     await db.query(nowcastQuery, [NOWCASTStatus.TN, NOWCASTStatus.RJ, NOWCASTStatus.MP, NOWCASTStatus.MH]);
-
-//     // Insert TN Weather Analysis data
-//     const tnWeatherQuery = `
-//           INSERT INTO shiftB_commonworks (operation, TN, RJ, MP, MH) 
-//           VALUES ('TN Weather Analysis', ?, 'N/A', 'N/A', 'N/A')
-//       `;
-//     await db.query(tnWeatherQuery, [TNWeatherAnalysis]);
-
-//     // console.log("All data inserted successfully");
-//     return res.status(200).send("Data inserted successfully");
-//   } catch (error) {
-//     console.error("Error during data insertion:", error);
-//     return res.status(500).send("Error inserting data");
-//   }
-// });
-// app.get("/shiftB_commonworkslast", async (req, res) => {
-//   try {
-//     const [rows] = await db.query("SELECT * FROM shiftB_commonworks ORDER BY created_at DESC LIMIT 3");
-//     return res.status(200).json(rows);
-//   } catch (error) {
-//     console.error("Error fetching data:", error);
-//     return res.status(500).send("Error fetching data");
-//   }
-// });
-
 app.post("/shiftB_commonworks", async (req, res) => {
   const { ZYGRIB, NOWCASTStatus, TNWeatherAnalysis } = req.body;
 
@@ -718,6 +669,7 @@ app.get("/shiftB_remarkslast", async (req, res) => {
 
 
 /////   Shift_C  Starts    /////
+
 app.post('/shiftC_forecaststatus', (req, res) => {
   const forecasts = req.body;
 
@@ -743,7 +695,7 @@ app.post('/shiftC_forecaststatus', (req, res) => {
 app.get('/shiftC_forecaststatus/last', async (req, res) => {
   try {
     // Query to get all entries from the table
-    const [results] = await db.query('SELECT * FROM shiftC_forecaststatus ORDER BY created_at DESC LIMIT 7');
+    const [results] = await db.query('SELECT * FROM shiftC_forecaststatus');
 
     if (results.length > 0) {
       res.status(200).json(results); // Return all entries
@@ -865,17 +817,17 @@ app.get("/shiftC_remarkslast", async (req, res) => {
     return res.status(500).send("Error fetching data");
   }
 });
+
 /////   Shift_C  Ends    /////
 
-// Start the server
+
+// app.listen(PORT, () => {
+//   console.log(`Server is running on ${PORT}`);
+// });
 
 
-
-// Serve React frontend in production (if you need to host both on the same server)
-
-
-
-
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+
